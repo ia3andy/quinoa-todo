@@ -3,7 +3,7 @@
 ## Add extensions
 
 ```bash=
-quarkus ext add quarkus-hibernate-reactive-rest-data-panache quarkus-resteasy-reactive-jackson quarkus-resteasy-reactive-links reactive-pg-client
+quarkus ext add quarkus-hibernate-reactive-rest-data-panache quarkus-resteasy-reactive-jackson reactive-pg-client
 ```
 
 ## Supersonic Subatomic CRUD backend 
@@ -23,12 +23,6 @@ public interface TodoResource extends PanacheEntityResource<TodoEntity, Long> {
 @Entity
 public class TodoEntity extends PanacheEntity {
     public String text;
-
-    @Column(updatable = false, insertable = false)
-    @Temporal(value = TemporalType.TIMESTAMP)
-    @ColumnDefault(value = "CURRENT_TIMESTAMP")
-    public Date createdAt;
-
 }
 ```
 
@@ -53,7 +47,7 @@ import axios from "axios";
 
 export class TodoApi {
 async list() {
-return axios.get('/api/todo?sort=-createdAt')
+return axios.get('/api/todo?sort=-id')
 .catch(error => {
 console.error(error);
 });
@@ -82,34 +76,75 @@ export default todoApi;
 ```javascript
     componentDidMount() {
         todoApi.list()
-            .then(r => {
-                this.setState({
-                    ...this.state,
-                    todo: r.data
-                });
-            })
+            .then(r => this.updateTodoState(r.data));
     }
-
+    
     addTodo = (text) => {
-        this.setState({
-            ...this.state,
-            submitDisabled: true
-        });
+        this.updateSubmitDisabledState(true);
         todoApi.create(text)
-            .then(r => {
-                this.setState({
-                    ...this.state,
-                    todo: [{ text: r.data.text, id: r.data.id }, ...this.state.todo]
-                });
-            })
+            .then(r => this.updateTodoState( [{ text: r.data.text, id: r.data.id }, ...this.state.todo]));
     }
-
+    
     removeTodo = (id) => {
         todoApi.delete(id)
-            .then(() => {
-                this.setState({todo: this.state.todo.filter(todo => todo.id !== id)})
-            })
+            .then(() => this.updateTodoState(this.state.todo.filter(todo => todo.id !== id)));
     }
+
+```
+
+## Testing
+
+```xml
+    <dependency>
+      <groupId>io.quarkiverse.quinoa</groupId>
+      <artifactId>quarkus-quinoa-testing</artifactId>
+      <version>1.0.5</version>
+      <scope>test</scope>
+    </dependency>
+```
+
+```java
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Response;
+import io.quarkiverse.quinoa.testing.QuarkusPlaywrightManager;
+import io.quarkiverse.quinoa.testing.QuinoaTestProfiles;
+import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.common.http.TestHTTPResource;
+import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.net.URL;
+
+@QuarkusTest
+@TestProfile(QuinoaTestProfiles.Enable.class)
+@QuarkusTestResource(QuarkusPlaywrightManager.class)
+public class TodoWebUITest {
+
+    @QuarkusPlaywrightManager.InjectPlaywright
+    BrowserContext context;
+
+    @TestHTTPResource("/")
+    URL url;
+
+    @Test
+    void testContent() {
+        final Page page = context.newPage();
+        Response response = page.navigate(url.toString());
+        Assertions.assertEquals("OK", response.statusText());
+
+        page.waitForLoadState();
+
+        String title = page.title();
+        Assertions.assertEquals("Quinoa Demo", title);
+
+        // Make sure the app content is ok
+        String greeting = page.innerText("h1");
+        Assertions.assertEquals("Ola Quinoa", greeting);
+    }
+}
 
 ```
 
@@ -151,4 +186,5 @@ quarkus build --clean --native -Dquarkus.native.container-build=true -DskipTests
 docker build -f src/main/docker/Dockerfile.native-micro -t quarkus/quinoa-todo .
 docker-compose up
 ```
+
 

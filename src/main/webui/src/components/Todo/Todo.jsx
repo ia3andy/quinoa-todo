@@ -4,7 +4,6 @@ import AddButton from '../AddButton'
 import InputText from '../TextInput'
 import List from '../List';
 import { EmojiSunglasses } from '@styled-icons/bootstrap';
-import todoApi from "../../api";
 
 const Loading = styled.div`
   text-align: center;
@@ -62,47 +61,37 @@ export default class Todo extends Component {
     }
 
     componentDidMount() {
-        todoApi.list()
-            .then(r => {
-                this.setState({
-                    ...this.state,
-                    todo: r.data
-                });
-            })
+        this.updateTodoState([]);
     }
 
     addTodo = (text) => {
-        this.setState({
-            ...this.state,
-            submitDisabled: true
-        });
-        todoApi.create(text)
-            .then(r => {
-                this.setState({
-                    ...this.state,
-                    todo: [{ text: r.data.text, id: r.data.id }, ...this.state.todo]
-                });
-            })
+        const id = Math.floor((Math.random() * 10000)).toString();
+        this.updateTodoState( [{ text, id }, ...this.state.todo]);
     }
 
     removeTodo = (id) => {
-        todoApi.delete(id)
-            .then(() => {
-                this.setState({todo: this.state.todo.filter(todo => todo.id !== id)})
-            })
+        this.updateTodoState(this.state.todo.filter(todo => todo.id !== id));
+    }
+
+    updateSubmitDisabledState = (submitDisabled) => {
+        this.setState({ submitDisabled });
+    }
+
+    updateTodoState = (todo) => {
+        this.setState({ todo });
     }
 
     updateInput = (event) => {
         let text = event.target.value.replace(/\s/g,'');
         this.setState({inputText: event.target.value})
         if (text) {
-            this.setState({submitDisabled: false})
+            this.updateSubmitDisabledState(false);
         } else {
-            this.setState({submitDisabled: true})
+            this.updateSubmitDisabledState(true);
         }
     }
 
-    handleSubmit= (event) =>{
+    handleSubmit = (event) =>{
         event.preventDefault();
         this.addTodo(this.state.inputText);
         this.setState({inputText: ''});

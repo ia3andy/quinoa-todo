@@ -2,7 +2,7 @@ import axios from "axios";
 
 export class TodoApi {
     async list() {
-        return axios.get('/api/todo?sort=-createdAt')
+        return axios.get('/api/todo?sort=-id')
             .catch(error => {
                 console.error(error);
             });
